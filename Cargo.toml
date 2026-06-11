@@ -1,0 +1,9 @@
+[workspace]
+members = [
+    "circuit/guest",
+    "circuit/host",
+    "verifier-lib",
+    "sdk",
+    "programs/balance_attestation",
+]
+resolver = "2"

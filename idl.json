@@ -1,0 +1,57 @@
+{
+  "name": "balance_attestation",
+  "version": "0.1.0",
+  "instructions": [
+    {
+      "name": "initialize_gate",
+      "accounts": [
+        { "name": "gate", "isMut": true, "isSigner": false, "pda": { "seeds": [{ "kind": "literal", "value": "gate_state" }] } },
+        { "name": "authority", "isMut": false, "isSigner": true }
+      ],
+      "args": [
+        { "name": "accepted_root", "type": { "array": ["u8", 32] } }
+      ]
+    },
+    {
+      "name": "update_root",
+      "accounts": [
+        { "name": "gate", "isMut": true, "isSigner": false, "pda": { "seeds": [{ "kind": "literal", "value": "gate_state" }] } },
+        { "name": "authority", "isMut": false, "isSigner": true }
+      ],
+      "args": [
+        { "name": "new_root", "type": { "array": ["u8", 32] } }
+      ]
+    },
+    {
+      "name": "verify_attestation",
+      "accounts": [
+        { "name": "gate", "isMut": true, "isSigner": false, "pda": { "seeds": [{ "kind": "literal", "value": "gate_state" }] } }
+      ],
+      "args": [
+        { "name": "receipt_bytes", "type": "bytes" },
+        { "name": "presenter_sig", "type": { "array": ["u8", 64] } },
+        { "name": "expected_threshold", "type": "u128" }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "GateState",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          { "name": "accepted_root", "type": { "array": ["u8", 32] } },
+          { "name": "spent_nullifiers", "type": { "vec": { "array": ["u8", 32] } } }
+        ]
+      }
+    }
+  ],
+  "errors": [
+    { "code": 5001, "name": "ProofInvalid" },
+    { "code": 5002, "name": "ContextMismatch" },
+    { "code": 5003, "name": "ThresholdNotMet" },
+    { "code": 5004, "name": "SignatureInvalid" },
+    { "code": 5005, "name": "StaleRoot" },
+    { "code": 5006, "name": "NullifierSpent" }
+  ]
+}

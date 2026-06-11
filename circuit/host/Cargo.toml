@@ -1,0 +1,20 @@
+[package]
+name = "balance-attestation-host"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+risc0-zkvm = { version = "1", features = ["std"] }
+anyhow = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+reqwest = { version = "0.11", features = ["json", "blocking"] }
+hex = "0.4"
+tokio = { version = "1", features = ["full"] }
+clap = { version = "4", features = ["derive"] }
+ed25519-dalek = { version = "2", features = ["rand_core"] }
+sha2 = "0.10"
+bytemuck = "1"
+
+[build-dependencies]
+risc0-build = "1"

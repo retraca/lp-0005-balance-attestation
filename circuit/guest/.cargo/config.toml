@@ -3,6 +3,7 @@ rustflags = [
     "-C", "passes=lower-atomic",
     "-C", "link-arg=-Ttext=0x00400000",
     "-C", "panic=abort",
+    # getrandom 0.3.x custom backend (provided by risc0-zkvm-platform)
     "--cfg", "getrandom_backend=\"custom\"",
 ]
 

@@ -5,6 +5,7 @@
 # revealing the actual balance, the account ID, or the NSK.
 # Runs fully offline: generates the proof, then verifies it locally.
 # On-chain submission requires a running LEZ sequencer (see README).
+# Off-chain transmission over Logos Messaging: see demo-offchain.sh.
 #
 # Usage: ./demo.sh [--dev]   (--dev sets RISC0_DEV_MODE=1 for fast testing)
 
@@ -64,10 +65,12 @@ import hashlib
 c = bytes.fromhex('$COMMITMENT')
 print(hashlib.sha256(c).digest().hex())
 ")
+# Root = SHA256(leaf || sibling): replicates compute_digest_for_path from
+# nssa/core (plain 64-byte pair hashing, no domain tag).
 MERKLE_ROOT=$(python3 -c "
 import hashlib
 leaf = bytes.fromhex('$LEAF')
-print(hashlib.sha256(b'\\x01' + leaf + leaf).digest().hex())
+print(hashlib.sha256(leaf + leaf).digest().hex())
 ")
 
 echo ""
@@ -76,7 +79,7 @@ echo "      Merkle root: $MERKLE_ROOT"
 
 echo ""
 echo "[3/5] Generating attestation proof (NSK and balance are private inputs)..."
-"$ATTEST_BIN" prove \
+PROVE_OUT=$("$ATTEST_BIN" prove \
   --nsk "$NSK" \
   --program-owner "$PROGRAM_OWNER" \
   --balance "$BALANCE" \
@@ -86,24 +89,20 @@ echo "[3/5] Generating attestation proof (NSK and balance are private inputs)...
   --merkle-root "$MERKLE_ROOT" \
   --leaf-index 0 \
   --merkle-path "$LEAF" \
-  --out /tmp/attest-receipt.bin
+  --out /tmp/attest-receipt.bin)
+echo "$PROVE_OUT"
+
+PRESENTER_PK=$(echo "$PROVE_OUT" | grep '^presenter_pk:' | awk '{print $2}')
+SIG=$(echo "$PROVE_OUT" | grep '^sig:' | awk '{print $2}')
 
 echo ""
 echo "[4/5] Verifying receipt offline..."
-PRESENTER_PK=$(python3 -c "
-from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
-from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
-import hashlib
-sk_bytes = bytes.fromhex('$PRESENTER_SK')
-sk = Ed25519PrivateKey.from_private_bytes(sk_bytes[:32])
-print(sk.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw).hex())
-" 2>/dev/null || echo "00000000000000000000000000000000000000000000000000000000000000ff")
-
 "$ATTEST_BIN" verify \
   --receipt /tmp/attest-receipt.bin \
   --context-id "$CONTEXT_ID" \
   --threshold "$THRESHOLD" \
-  --presenter-pk "$PRESENTER_PK"
+  --presenter-pk "$PRESENTER_PK" \
+  --sig "$SIG"
 
 echo ""
 echo "[5/5] Done."
@@ -111,9 +110,12 @@ echo ""
 echo "=== Demo complete ==="
 echo "Receipt: /tmp/attest-receipt.bin"
 echo ""
+echo "Next: off-chain verification over Logos Messaging:"
+echo "  ./demo-offchain.sh --dev"
+echo ""
 echo "Privacy properties:"
 echo "  - NSK and actual balance are private RISC0 inputs and never leave this machine"
 echo "  - Nullifier = SHA256('balance-attest/v1' || nsk || context_id || use_nonce)"
 echo "  - Presenter binding: Ed25519 signature over (context_id || merkle_root || threshold || nullifier)"
 echo "  - Context binding: proof is only valid for the specific gating program (context_id)"
-echo "  - One-shot: nullifier stored on-chain after first use; proof cannot be replayed"
+echo "  - One-shot: nullifier stored after first use; proof cannot be replayed"

@@ -1,0 +1,20 @@
+[package]
+name = "balance-attestation-messaging"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "attest-msg"
+path = "src/main.rs"
+
+[dependencies]
+balance-attestation-verifier = { path = "../verifier-lib" }
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+tokio = { version = "1", features = ["full"] }
+reqwest = { version = "0.11", features = ["json"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+base64 = "0.22"
+hex = "0.4"
+urlencoding = "2"

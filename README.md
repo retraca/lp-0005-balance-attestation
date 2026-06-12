@@ -24,13 +24,25 @@ The recomputed commitment is verified against the on-chain Merkle tree.
 |------|------|
 | `circuit/guest` | RISC0 zkVM guest circuit |
 | `circuit/host` | CLI: `balance-attest prove / verify` |
-| `programs/balance_attestation` | LEZ gating program |
+| `programs/balance_attestation` | LEZ gating program (on-chain path) |
+| `verifier-lib` | Off-chain verifier library (`verify_attestation`) |
+| `messaging` | Logos Messaging transport: `attest-msg send / gatekeeper` |
+| `sdk` | Client SDK helpers (`sign_attestation`) |
 
 ## Quick start
 
 ```bash
-docker compose up -d
+# Offline: generate a proof and verify it locally
+./demo.sh --dev
 
+# Off-chain path: attestation over Logos Messaging (Waku), token-gated
+# group admission with replay denial. Requires docker + jq.
+./demo-offchain.sh --dev
+```
+
+Manual CLI usage:
+
+```bash
 balance-attest prove \
   --nsk <hex> \
   --program-owner <hex> \
@@ -39,6 +51,8 @@ balance-attest prove \
   --context-id <program-account-id> \
   --presenter-sk <hex> \
   --out receipt.bin
+# online: --sequencer <url> fetches the Merkle proof from the chain
+# offline: --merkle-root <hex> --leaf-index <n> --merkle-path <hex,hex,...>
 
 balance-attest verify \
   --receipt receipt.bin \
@@ -47,6 +61,27 @@ balance-attest verify \
   --presenter-pk <hex> \
   --sig <hex>
 ```
+
+## Off-chain path: Logos Messaging
+
+The proof is a self-contained credential, so it can gate access without any
+on-chain transaction. `attest-msg` transmits it over the Waku relay network:
+
+```bash
+# Gatekeeper guards a token-gated group, verifying incoming attestations
+# locally with verifier-lib and tracking spent nullifiers:
+attest-msg gatekeeper --node http://127.0.0.1:8646 \
+  --context-id <hex> --threshold 500 --group vip-room
+
+# Prover publishes the attestation and awaits the verdict:
+attest-msg send --node http://127.0.0.1:8645 \
+  --receipt receipt.bin --presenter-pk <hex> --sig <hex>
+```
+
+Content topics: `/lp0005/1/attest/json` (attestations) and
+`/lp0005/1/gate-response/json` (verdicts), on relay shard `/waku/2/rs/66/0`.
+`demo-offchain.sh` runs the full flow against two relay-connected nwaku nodes,
+including the replay-denial case.
 
 ## Error codes
 

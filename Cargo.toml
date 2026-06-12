@@ -4,6 +4,7 @@ members = [
     "circuit/host",
     "verifier-lib",
     "sdk",
+    "messaging",
     "programs/balance_attestation",
 ]
 resolver = "2"

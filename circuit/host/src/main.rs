@@ -46,6 +46,16 @@ enum Cmd {
         /// Write receipt bytes to this file (default: receipt.bin).
         #[arg(long, default_value = "receipt.bin")]
         out: PathBuf,
+        /// Offline mode: Merkle root (64-char hex). Skips the sequencer fetch
+        /// when --merkle-root, --leaf-index, and --merkle-path are all given.
+        #[arg(long)]
+        merkle_root: Option<String>,
+        /// Offline mode: leaf index in the commitment tree.
+        #[arg(long)]
+        leaf_index: Option<usize>,
+        /// Offline mode: sibling nodes from leaf to root (comma-separated hex).
+        #[arg(long)]
+        merkle_path: Option<String>,
     },
     /// Verify a receipt offline (no chain access needed).
     Verify {
@@ -82,7 +92,7 @@ async fn main() -> Result<()> {
     let cli = Cli::parse();
 
     match cli.cmd {
-        Cmd::Prove { nsk, program_owner, balance, threshold, context_id, presenter_sk, sequencer, data, out } => {
+        Cmd::Prove { nsk, program_owner, balance, threshold, context_id, presenter_sk, sequencer, data, out, merkle_root, leaf_index, merkle_path } => {
             let nsk_bytes = parse_hex32(&nsk)?;
             let po_bytes = parse_hex32(&program_owner)?;
             let ctx_bytes = parse_hex32(&context_id)?;
@@ -101,9 +111,23 @@ async fn main() -> Result<()> {
             // Compute the commitment to look up in the Merkle tree.
             let commitment = compute_commitment(&nsk_bytes, &po_bytes, balance, &data_bytes, 0u128)?;
 
-            eprintln!("Fetching Merkle proof from {}...", sequencer);
             let (merkle_root, leaf_index, sibling_nodes) =
-                fetch_membership_proof(&sequencer, &commitment).await?;
+                match (merkle_root, leaf_index, merkle_path) {
+                    (Some(root_hex), Some(idx), Some(path)) => {
+                        // Offline mode: caller supplies the membership proof directly.
+                        let root = parse_hex32(&root_hex)?;
+                        let siblings: Result<Vec<[u8; 32]>> =
+                            path.split(',').map(|s| parse_hex32(s.trim())).collect();
+                        (root, idx, siblings?)
+                    }
+                    (None, None, None) => {
+                        eprintln!("Fetching Merkle proof from {}...", sequencer);
+                        fetch_membership_proof(&sequencer, &commitment).await?
+                    }
+                    _ => bail!(
+                        "offline mode requires all of --merkle-root, --leaf-index, --merkle-path"
+                    ),
+                };
             eprintln!("Merkle root: {}", hex::encode(merkle_root));
 
             // Convert program_owner bytes to [u32; 8] LE.

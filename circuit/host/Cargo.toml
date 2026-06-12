@@ -3,6 +3,10 @@ name = "balance-attestation-host"
 version = "0.1.0"
 edition = "2021"
 
+[[bin]]
+name = "balance-attest"
+path = "src/main.rs"
+
 [dependencies]
 risc0-zkvm = { version = "3.0.5", features = ["std"] }
 anyhow = "1"

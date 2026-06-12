@@ -229,8 +229,8 @@ fn compute_commitment(
     let mut h = Sha256::new();
     h.update(b"LEE/keys");
     h.update(nsk);
-    h.update(&[0x07]);
-    h.update(&[0u8; 23]);
+    h.update([0x07u8]);
+    h.update([0u8; 23]);
     let npk: [u8; 32] = h.finalize().into();
 
     // data_hash = SHA256(data)
@@ -240,14 +240,14 @@ fn compute_commitment(
     const PREFIX: &[u8] = b"/LEE/v0.3/Commitment/\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00";
     let mut h = Sha256::new();
     h.update(PREFIX);
-    h.update(&npk);
+    h.update(npk);
     // program_owner as [u32; 8] little-endian
     for chunk in program_owner.chunks_exact(4) {
         let word = u32::from_le_bytes(chunk.try_into().unwrap());
-        h.update(&word.to_le_bytes());
+        h.update(word.to_le_bytes());
     }
-    h.update(&balance.to_le_bytes());
-    h.update(&nonce.to_le_bytes());
-    h.update(&data_hash);
+    h.update(balance.to_le_bytes());
+    h.update(nonce.to_le_bytes());
+    h.update(data_hash);
     Ok(h.finalize().into())
 }

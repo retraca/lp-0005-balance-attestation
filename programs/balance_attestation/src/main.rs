@@ -7,6 +7,7 @@
 //! proof to this specific circuit -- the LEZ-native pattern (see LP-0002, LP-0003).
 
 #![no_main]
+#![allow(clippy::cloned_ref_to_slice_refs)]
 
 use borsh::BorshDeserialize;
 use nssa_core::account::{AccountWithMetadata, Data};

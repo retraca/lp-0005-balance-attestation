@@ -4,6 +4,8 @@
 //! use balance_attestation_verifier::{verify_attestation, BalanceAttestation};
 //!
 //! # fn run(receipt_bytes: &[u8], presenter_sig: [u8; 64]) -> anyhow::Result<()> {
+//! # let MY_CONTEXT_ID = [0u8; 32];
+//! # let MY_PRESENTER_PK = [0u8; 32];
 //! let image_id: [u32; 8] = balance_attestation_verifier::IMAGE_ID;
 //! let attestation = verify_attestation(
 //!     receipt_bytes,

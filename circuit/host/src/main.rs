@@ -3,7 +3,9 @@ use clap::{Parser, Subcommand};
 use hex::FromHex;
 use std::path::PathBuf;
 
+mod methods;
 mod prover;
+use methods::BALANCE_ATTESTATION_GUEST_ID;
 use prover::{fetch_membership_proof, prove, ProverInput};
 
 #[derive(Parser)]
@@ -158,7 +160,6 @@ async fn main() -> Result<()> {
         }
 
         Cmd::Verify { receipt, context_id, threshold, presenter_pk, sig } => {
-            include!(concat!(env!("OUT_DIR"), "/methods.rs"));
 
             let ctx_bytes = parse_hex32(&context_id)?;
             let pk_bytes = parse_hex32(&presenter_pk)?;

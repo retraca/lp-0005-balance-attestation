@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-risc0-zkvm = { version = "1", features = ["std"] }
+risc0-zkvm = { version = "3.0.5", features = ["std"] }
 anyhow = "1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -17,4 +17,3 @@ sha2 = "0.10"
 bytemuck = "1"
 
 [build-dependencies]
-risc0-build = "1"

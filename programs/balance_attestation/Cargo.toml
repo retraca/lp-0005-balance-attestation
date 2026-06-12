@@ -3,10 +3,33 @@ name = "balance-attestation-program"
 version = "0.1.0"
 edition = "2021"
 
+[[bin]]
+name = "balance_attestation"
+path = "src/main.rs"
+test = false
+
+[lib]
+path = "src/lib.rs"
+
 [dependencies]
 borsh = { version = "1", features = ["derive"] }
-nssa-core = { git = "https://github.com/logos-co/lez-build.git" }
+nssa-core = { package = "nssa_core", git = "https://github.com/logos-blockchain/logos-execution-zone.git", tag = "v0.1.2" }
 spel-framework = { git = "https://github.com/logos-co/spel.git" }
-risc0-zkvm = { version = "1", features = ["std"] }
+risc0-zkvm = { version = "3.0.5", features = ["std"] }
 ed25519-dalek = "2"
 serde = { version = "1", features = ["derive"] }
+sha2 = "0.10"
+# pin ruint to avoid MSRV conflict with risc0 guest-builder Docker (rustc 1.88.0-dev)
+ruint = "=1.17.0"
+
+[package.metadata.risc0]
+methods = ["../../circuit/guest"]
+
+[build-dependencies]
+risc0-build = "3.0.5"
+
+[profile.release]
+lto = true
+opt-level = 'z'
+codegen-units = 1
+strip = "symbols"

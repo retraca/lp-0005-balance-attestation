@@ -1,0 +1,11 @@
+[package]
+name = "balance-attestation-verifier"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+risc0-zkvm = { version = "3.0.5", features = ["std"] }
+ed25519-dalek = "2"
+anyhow = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

@@ -61,7 +61,7 @@ pub fn main() {
 
     // 1. Derive NPK from NSK.
     // npk = SHA256("LEE/keys" || nsk || 0x07 || [0;23])
-    let npk = {
+    let npk: [u8; 32] = {
         let mut preimage = alloc::vec::Vec::with_capacity(8 + 32 + 1 + 23);
         preimage.extend_from_slice(b"LEE/keys");
         preimage.extend_from_slice(&input.nsk);
@@ -72,7 +72,7 @@ pub fn main() {
 
     // 2. Recompute commitment.
     // SHA256(PREFIX || npk || program_owner_le || balance_le || nonce_le || SHA256(data))
-    let commitment = {
+    let commitment: [u8; 32] = {
         const PREFIX: &[u8; 32] = b"/LEE/v0.3/Commitment/\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00";
         let hashed_data: [u8; 32] = ShaImpl::hash_bytes(&input.data).as_bytes().try_into().unwrap();
         let mut bytes = alloc::vec::Vec::with_capacity(32 + 32 + 32 + 16 + 16 + 32);
@@ -84,12 +84,12 @@ pub fn main() {
         bytes.extend_from_slice(&input.balance.to_le_bytes());
         bytes.extend_from_slice(&input.nonce.to_le_bytes());
         bytes.extend_from_slice(&hashed_data);
-        ShaImpl::hash_bytes(&bytes).as_bytes().try_into::<[u8; 32]>().unwrap()
+        ShaImpl::hash_bytes(&bytes).as_bytes().try_into().unwrap()
     };
 
     // 3. Verify Merkle membership.
     // Replicate compute_digest_for_path from nssa/core/src/commitment.rs.
-    let computed_root = {
+    let computed_root: [u8; 32] = {
         let mut result: [u8; 32] = ShaImpl::hash_bytes(&commitment).as_bytes().try_into().unwrap();
         let mut level_index = input.leaf_index;
         for node in &input.sibling_nodes {
@@ -115,13 +115,13 @@ pub fn main() {
 
     // 6. Compute nullifier = SHA256("balance-attest/v1" || nsk || context_id || nonce).
     // Bound to nsk: cannot be replayed without the prover's secret key.
-    let nullifier = {
+    let nullifier: [u8; 32] = {
         let mut preimage = alloc::vec::Vec::with_capacity(16 + 32 + 32 + 16);
         preimage.extend_from_slice(b"balance-attest/v1");
         preimage.extend_from_slice(&input.nsk);
         preimage.extend_from_slice(&input.context_id);
         preimage.extend_from_slice(&input.use_nonce.to_le_bytes());
-        ShaImpl::hash_bytes(&preimage).as_bytes().try_into::<[u8; 32]>().unwrap()
+        ShaImpl::hash_bytes(&preimage).as_bytes().try_into().unwrap()
     };
 
     // 7. Write journal.

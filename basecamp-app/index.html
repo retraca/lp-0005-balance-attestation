@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Private Balance Attestation — LP-0005</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 640px; margin: 2rem auto; padding: 0 1rem; }
+    h1 { font-size: 1.25rem; }
+    .section { margin: 1.5rem 0; }
+    label { display: block; font-size: 0.85rem; margin-bottom: 0.25rem; color: #555; }
+    input { width: 100%; box-sizing: border-box; padding: 0.4rem; font-family: monospace; font-size: 0.85rem; border: 1px solid #ccc; border-radius: 4px; }
+    button { margin-top: 0.5rem; padding: 0.4rem 1rem; cursor: pointer; }
+    pre { background: #f5f5f5; padding: 0.75rem; border-radius: 4px; font-size: 0.8rem; overflow-x: auto; white-space: pre-wrap; word-break: break-all; }
+    .note { font-size: 0.8rem; color: #777; margin-top: 0.25rem; }
+    .ok { color: #2a7; }
+    .err { color: #c33; }
+  </style>
+</head>
+<body>
+  <h1>Private Balance Attestation</h1>
+  <p>Compute your commitment hash offline. Your NSK and actual balance never leave this page.</p>
+
+  <div class="section">
+    <h2>1 — Compute commitment hash</h2>
+    <label>NSK — NullifierSecretKey (64-char hex)</label>
+    <input id="nsk" type="password" placeholder="your private NSK" />
+    <label>Program Owner (64-char hex)</label>
+    <input id="program-owner" type="text" placeholder="program owner account ID" />
+    <label>Balance (integer)</label>
+    <input id="balance" type="number" placeholder="e.g. 1000" />
+    <label>Nonce (integer, usually 0)</label>
+    <input id="nonce" type="number" value="0" />
+    <button onclick="computeCommitment()">Compute</button>
+    <pre id="commitment-out"></pre>
+    <p class="note">Share only the commitment hash with the operator to include in the Merkle tree. NSK and balance stay private.</p>
+  </div>
+
+  <div class="section">
+    <h2>2 — Generate attestation proof</h2>
+    <p>Once the operator publishes the Merkle root, use the CLI to generate your proof:</p>
+    <pre>balance-attest prove \
+  --nsk &lt;your-nsk&gt; \
+  --program-owner &lt;owner-hex&gt; \
+  --balance &lt;N&gt; \
+  --threshold &lt;T&gt; \
+  --context-id &lt;gate-program-id&gt; \
+  --presenter-sk &lt;your-ed25519-sk&gt; \
+  --merkle-root &lt;root&gt; \
+  --leaf-index &lt;N&gt; \
+  --merkle-path &lt;sibling,sibling,...&gt; \
+  --out attest-receipt.bin</pre>
+    <p class="note">NSK and balance are private RISC0 inputs and do not appear in the proof output.</p>
+  </div>
+
+  <div class="section">
+    <h2>3 — Submit to gating program</h2>
+    <p>Submit <code>attest-receipt.bin</code> to the on-chain <code>gate</code> instruction. The program verifies the receipt, checks the threshold, and marks the nullifier spent — one proof, one use.</p>
+  </div>
+
+  <script>
+    async function sha256bytes(bytes) {
+      const buf = await crypto.subtle.digest('SHA-256', bytes);
+      return new Uint8Array(buf);
+    }
+
+    function hexToBytes(hex) {
+      const b = new Uint8Array(hex.length / 2);
+      for (let i = 0; i < b.length; i++) b[i] = parseInt(hex.substr(i*2,2),16);
+      return b;
+    }
+
+    function bytesToHex(b) {
+      return Array.from(b).map(x => x.toString(16).padStart(2,'0')).join('');
+    }
+
+    function u128toLE(n) {
+      const bytes = new Uint8Array(16);
+      let v = BigInt(n);
+      for (let i = 0; i < 16; i++) { bytes[i] = Number(v & 0xffn); v >>= 8n; }
+      return bytes;
+    }
+
+    async function computeCommitment() {
+      const nskHex   = document.getElementById('nsk').value.trim();
+      const ownerHex = document.getElementById('program-owner').value.trim();
+      const balance  = document.getElementById('balance').value.trim();
+      const nonce    = document.getElementById('nonce').value.trim();
+      const out      = document.getElementById('commitment-out');
+
+      if (nskHex.length !== 64)   { out.textContent = 'Error: NSK must be 64 hex chars.'; return; }
+      if (ownerHex.length !== 64) { out.textContent = 'Error: Program Owner must be 64 hex chars.'; return; }
+      if (!balance || isNaN(balance)) { out.textContent = 'Error: Balance must be an integer.'; return; }
+
+      // NPK = SHA256("LEE/keys" || nsk || 0x07 || [0;23])
+      const nsk = hexToBytes(nskHex);
+      const npkPreimage = new Uint8Array(8 + 32 + 1 + 23);
+      const enc = new TextEncoder();
+      npkPreimage.set(enc.encode('LEE/keys'), 0);
+      npkPreimage.set(nsk, 8);
+      npkPreimage[40] = 0x07;
+      const npk = await sha256bytes(npkPreimage);
+
+      // data_hash = SHA256("") for empty data field
+      const dataHash = await sha256bytes(new Uint8Array(0));
+
+      // PREFIX = "/LEE/v0.3/Commitment/" + [0;11]
+      const prefix = new Uint8Array(32);
+      prefix.set(enc.encode('/LEE/v0.3/Commitment/'), 0);
+
+      const owner = hexToBytes(ownerHex);
+      const balBytes = u128toLE(BigInt(balance));
+      const nonceBytes = u128toLE(BigInt(nonce || 0));
+
+      const preimage = new Uint8Array(32 + 32 + 32 + 16 + 16 + 32);
+      let off = 0;
+      preimage.set(prefix,    off); off += 32;
+      preimage.set(npk,       off); off += 32;
+      preimage.set(owner,     off); off += 32;
+      preimage.set(balBytes,  off); off += 16;
+      preimage.set(nonceBytes,off); off += 16;
+      preimage.set(dataHash,  off);
+
+      const commitment = await sha256bytes(preimage);
+      const commitHex = bytesToHex(commitment);
+
+      // leaf = SHA256(commitment) — as computed in the Merkle tree
+      const leaf = await sha256bytes(commitment);
+
+      out.innerHTML =
+        '<span class="ok">commitment: ' + commitHex + '</span>\n' +
+        'leaf hash:  ' + bytesToHex(leaf) + '\n\n' +
+        'Share only the commitment or leaf hash with the operator.';
+    }
+  </script>
+</body>
+</html>

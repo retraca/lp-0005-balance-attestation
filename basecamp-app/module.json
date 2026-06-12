@@ -1,0 +1,12 @@
+{
+  "name": "balance_attestation",
+  "version": "0.1.0",
+  "description": "LP-0005 private balance attestation: prove account balance >= threshold without revealing the balance",
+  "author": "retraca",
+  "type": "mini-app",
+  "category": "defi",
+  "interface": "basecamp",
+  "main": "index.html",
+  "capabilities": [],
+  "dependencies": []
+}
